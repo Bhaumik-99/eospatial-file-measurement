@@ -18,7 +18,7 @@ Open `/docs` for Swagger UI.
 - `POST /api/files/` upload `.kml` or `.zip` Shapefile archive.
 - `GET /api/files/{id}/` file status and metadata.
 - `GET /api/files/{id}/measurements/` per-feature measurements.
-- `GET /health` health check.
+- `GET /healthz` health check.
 
 ### Example
 
