@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -22,7 +22,7 @@ def persist_processed_file(db: Session, record: FileRecord, processed: Processed
     record.crs = processed.crs
     record.status = FileStatus.COMPLETED
     record.error_message = None
-    record.processed_at = datetime.now(timezone.utc)
+    record.processed_at = datetime.now(UTC)
 
     db.query(FeatureMeasurement).filter(FeatureMeasurement.file_id == record.id).delete(
         synchronize_session=False
