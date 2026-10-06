@@ -1,11 +1,16 @@
+import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.db.session import get_session_factory
 from app.models.file import FileRecord, FileStatus
 from app.models.measurement import FeatureMeasurement
-from app.services.geospatial import ProcessedFile, process_geospatial_file
+from app.services.geospatial import GeospatialProcessingError, ProcessedFile, process_geospatial_file
+
+logger = logging.getLogger(__name__)
 
 
 def persist_processed_file(db: Session, record: FileRecord, processed: ProcessedFile) -> None:
@@ -13,8 +18,11 @@ def persist_processed_file(db: Session, record: FileRecord, processed: Processed
     record.crs = processed.crs
     record.status = FileStatus.COMPLETED
     record.error_message = None
+    record.processed_at = datetime.now(timezone.utc)
 
-    db.query(FeatureMeasurement).filter(FeatureMeasurement.file_id == record.id).delete()
+    db.query(FeatureMeasurement).filter(FeatureMeasurement.file_id == record.id).delete(
+        synchronize_session=False
+    )
     db.add_all(
         [
             FeatureMeasurement(
@@ -36,13 +44,41 @@ def persist_processed_file(db: Session, record: FileRecord, processed: Processed
     db.commit()
 
 
-def process_file_record(db: Session, record: FileRecord, settings: Settings) -> None:
-    """Synchronous service entry point useful to workers/CLI jobs."""
+def process_file_record(file_id: str, settings: Settings) -> None:
+    """Process one file using a fresh database session for background/worker execution."""
+    session_factory = get_session_factory(settings.database_url)
+    db = session_factory()
     try:
+        record = db.get(FileRecord, file_id)
+        if record is None or record.status != FileStatus.PROCESSING:
+            return
+
         processed = process_geospatial_file(Path(record.stored_path), record.file_type, settings)
         persist_processed_file(db, record, processed)
-    except Exception as exc:
+        logger.info("Geospatial file processed", extra={"file_id": file_id})
+    except GeospatialProcessingError as exc:
         db.rollback()
-        record.status = FileStatus.FAILED
-        record.error_message = str(exc)
-        db.commit()
+        record = db.get(FileRecord, file_id)
+        if record:
+            record.status = FileStatus.FAILED
+            record.error_message = str(exc)
+            record.processed_at = datetime.now(timezone.utc)
+            db.commit()
+        logger.warning(
+            "Geospatial file rejected",
+            extra={"file_id": file_id, "reason": str(exc)},
+        )
+    except Exception:
+        db.rollback()
+        record = db.get(FileRecord, file_id)
+        if record:
+            record.status = FileStatus.FAILED
+            record.error_message = "Unexpected processing error. Check application logs."
+            record.processed_at = datetime.now(timezone.utc)
+            db.commit()
+        logger.exception(
+            "Unexpected geospatial processing failure",
+            extra={"file_id": file_id},
+        )
+    finally:
+        db.close()
