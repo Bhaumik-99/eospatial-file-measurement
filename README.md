@@ -48,7 +48,7 @@ FastAPI was selected for typed request/response models and automatic OpenAPI doc
 
 ## Learning and future scope
 
-This project reinforced practical geospatial concepts such as CRS selection, projected-vs-geographic measurement semantics, safe archive extraction, and separation of API, processing, and persistence concerns. Future work includes asynchronous job queues, PostGIS, object storage, pagination/streaming for large feature sets, richer geometry support, observability, authentication/rate limiting, and cloud deployment.
+This project reinforced practical geospatial concepts such as CRS selection, projected-vs-geographic measurement semantics, safe archive extraction, and separation of API, processing, and persistence concerns. Future work includes abackground job queues, PostGIS, object storage, pagination/streaming for large feature sets, richer geometry support, observability, authentication/rate limiting, and cloud deployment.
 
 ## Tests
 
@@ -110,3 +110,16 @@ Key learning areas were CRS-aware measurement, GDAL-backed ingestion, Shapefile 
 - Pagination and streaming for large feature collections
 - More OGC formats and richer spatial filters
 - Authentication, rate limiting, structured logging, and OpenTelemetry
+
+
+## Operations
+
+`DELETE /api/files/{id}/` removes the database record, feature results, and local upload directory. The measurement endpoint supports pagination and `include_geometry=false` for smaller responses.
+
+## Database migrations
+
+Versioned schema evolution is provided through Alembic:
+
+```bash
+alembic upgrade head
+```
