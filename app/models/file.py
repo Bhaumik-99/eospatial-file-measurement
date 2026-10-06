@@ -1,4 +1,4 @@
-import enum
+from enum import StrEnum
 import uuid
 from datetime import datetime
 
@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.session import Base
 
 
-class FileStatus(str, enum.Enum):
+class FileStatus(StrEnum):
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
