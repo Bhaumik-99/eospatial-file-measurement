@@ -1,15 +1,14 @@
 import io
 import time
 import zipfile
+from pathlib import Path
+import tempfile
 
 import geopandas as gpd
 from shapely.geometry import Polygon
 
 
 def make_shapefile_zip() -> bytes:
-    import tempfile
-    from pathlib import Path
-
     with tempfile.TemporaryDirectory() as tmp:
         shp = Path(tmp) / "survey.shp"
         gdf = gpd.GeoDataFrame(
@@ -46,6 +45,11 @@ def test_health(client):
     assert response.json() == {"status": "ok", "database": "ok", "storage": "ok"}
 
 
+def test_request_id_is_returned(client):
+    response = client.get("/healthz", headers={"X-Request-ID": "test-request-123"})
+    assert response.headers["X-Request-ID"] == "test-request-123"
+
+
 def test_upload_shapefile_and_measurements(client):
     response = client.post(
         "/api/files/",
@@ -76,8 +80,21 @@ def test_measurement_can_omit_geometry(client):
     )
     file_id = response.json()["id"]
     wait_for_completion(client, file_id)
-    payload = client.get(f"/api/files/{file_id}/measurements/?include_geometry=false").json()
+    payload = client.get(
+        f"/api/files/{file_id}/measurements/?include_geometry=false"
+    ).json()
     assert payload["items"][0]["geometry"] is None
+
+
+def test_measurement_page_size_is_bounded(client):
+    response = client.post(
+        "/api/files/",
+        files={"upload": ("survey.zip", make_shapefile_zip(), "application/zip")},
+    )
+    file_id = response.json()["id"]
+    wait_for_completion(client, file_id)
+    response = client.get(f"/api/files/{file_id}/measurements/?page_size=501")
+    assert response.status_code == 422
 
 
 def test_invalid_extension(client):
