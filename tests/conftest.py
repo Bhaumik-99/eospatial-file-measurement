@@ -29,10 +29,11 @@ def client(tmp_path: Path):
 
     settings = Settings(database_url=database_url, storage_dir=tmp_path / "storage")
     get_session_factory.cache_clear()
-
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[get_settings] = lambda: settings
+
     with TestClient(app) as test_client:
         yield test_client
+
     app.dependency_overrides.clear()
     get_session_factory.cache_clear()
