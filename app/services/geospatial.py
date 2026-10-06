@@ -192,9 +192,9 @@ def _projection_plan(gdf: gpd.GeoDataFrame) -> ProjectionPlan:
     try:
         wgs84 = gdf.to_crs("EPSG:4326")
         lon, lat = _representative_lon_lat(wgs84)
-        minx, miny, maxx, maxy = wgs84.total_bounds
+        minx, _, maxx, _ = wgs84.total_bounds
         lon_span = abs(maxx - minx)
-        lat_span = abs(maxy - miny)
+        lat_span = abs(wgs84.total_bounds[3] - wgs84.total_bounds[1])
         crosses_dateline = lon_span > 180
 
         if lon_span <= 12 and lat_span <= 8 and not crosses_dateline and -80 <= lat <= 84:
