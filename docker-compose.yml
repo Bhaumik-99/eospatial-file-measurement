@@ -12,6 +12,7 @@ services:
       MAX_ZIP_FILES: 10000
       MEASUREMENT_PAGE_SIZE_DEFAULT: 100
       MEASUREMENT_PAGE_SIZE_MAX: 500
+      AUTO_CREATE_SCHEMA: true
     volumes:
       - ./storage:/app/storage
       - ./data:/app/data
