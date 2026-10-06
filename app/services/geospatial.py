@@ -117,7 +117,11 @@ def _safe_extract(
 
 
 def _find_shapefile(extracted_dir: Path) -> Path:
-    candidates = {path.resolve() for path in extracted_dir.rglob("*") if path.suffix.lower() == ".shp"}
+    candidates = {
+        path.resolve()
+        for path in extracted_dir.rglob("*")
+        if path.suffix.lower() == ".shp"
+    }
     shapefiles = sorted(candidates)
     if not shapefiles:
         raise GeospatialProcessingError("ZIP does not contain a .shp file.")
