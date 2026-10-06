@@ -1,4 +1,5 @@
 import io
+import time
 import zipfile
 
 import geopandas as gpd
@@ -30,32 +31,53 @@ def make_shapefile_zip() -> bytes:
         return buf.getvalue()
 
 
+def wait_for_completion(client, file_id: str):
+    for _ in range(50):
+        details = client.get(f"/api/files/{file_id}/").json()
+        if details["status"] != "PROCESSING":
+            return details
+        time.sleep(0.01)
+    return details
+
+
 def test_health(client):
     response = client.get("/healthz")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {"status": "ok", "database": "ok", "storage": "ok"}
 
 
 def test_upload_shapefile_and_measurements(client):
-    payload = make_shapefile_zip()
     response = client.post(
         "/api/files/",
-        files={"upload": ("survey.zip", payload, "application/zip")},
+        files={"upload": ("survey.zip", make_shapefile_zip(), "application/zip")},
     )
-    assert response.status_code == 201
+    assert response.status_code == 202
     data = response.json()
-    assert data["feature_count"] == 1
-    assert data["crs"] == "EPSG:4326"
-    assert data["status"] == "COMPLETED"
+    assert data["status"] == "PROCESSING"
+    details = wait_for_completion(client, data["id"])
+    assert details["status"] == "COMPLETED"
+    assert details["feature_count"] == 1
+    assert details["crs"] == "EPSG:4326"
 
-    file_id = data["id"]
-    assert client.get(f"/api/files/{file_id}/").status_code == 200
-
-    measurements = client.get(f"/api/files/{file_id}/measurements/")
+    measurements = client.get(f"/api/files/{data['id']}/measurements/?page_size=1")
     assert measurements.status_code == 200
-    items = measurements.json()["items"]
-    assert items[0]["area_m2"] is not None and items[0]["area_m2"] > 0
-    assert items[0]["measurement_crs"] != "EPSG:4326"
+    payload = measurements.json()
+    assert payload["total"] == 1
+    assert payload["has_next"] is False
+    item = payload["items"][0]
+    assert item["area_m2"] is not None and item["area_m2"] > 0
+    assert item["measurement_crs"] != "EPSG:4326"
+
+
+def test_measurement_can_omit_geometry(client):
+    response = client.post(
+        "/api/files/",
+        files={"upload": ("survey.zip", make_shapefile_zip(), "application/zip")},
+    )
+    file_id = response.json()["id"]
+    wait_for_completion(client, file_id)
+    payload = client.get(f"/api/files/{file_id}/measurements/?include_geometry=false").json()
+    assert payload["items"][0]["geometry"] is None
 
 
 def test_invalid_extension(client):
@@ -66,6 +88,26 @@ def test_invalid_extension(client):
     assert response.status_code == 415
 
 
-def test_missing_file_returns_422(client):
-    response = client.post("/api/files/")
+def test_invalid_kml_returns_422(client):
+    response = client.post(
+        "/api/files/",
+        files={"upload": ("survey.kml", b"<not-kml>", "application/xml")},
+    )
     assert response.status_code == 422
+
+
+def test_unknown_file_returns_404(client):
+    response = client.get("/api/files/does-not-exist/")
+    assert response.status_code == 404
+
+
+def test_delete_file(client):
+    response = client.post(
+        "/api/files/",
+        files={"upload": ("survey.zip", make_shapefile_zip(), "application/zip")},
+    )
+    file_id = response.json()["id"]
+    wait_for_completion(client, file_id)
+    delete_response = client.delete(f"/api/files/{file_id}/")
+    assert delete_response.status_code == 204
+    assert client.get(f"/api/files/{file_id}/").status_code == 404
