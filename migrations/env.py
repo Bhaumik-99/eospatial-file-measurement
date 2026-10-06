@@ -5,8 +5,8 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.db.session import Base
-from app.models.file import FileRecord
-from app.models.measurement import FeatureMeasurement
+from app.models.file import FileRecord  # noqa: F401
+from app.models.measurement import FeatureMeasurement  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
