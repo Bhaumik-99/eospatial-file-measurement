@@ -92,9 +92,14 @@ def _safe_extract(
                 file_count += 1
                 if file_count > max_files:
                     raise GeospatialProcessingError("ZIP contains too many files.")
+                file_count += 1
+                if file_count > max_files:
+                    raise GeospatialProcessingError("ZIP contains too many files.")
                 name = Path(info.filename)
                 if name.is_absolute() or ".." in name.parts:
                     raise GeospatialProcessingError("ZIP contains an unsafe path.")
+                if info.create_system == 3 and ((info.external_attr >> 16) & 0o170000) == 0o120000:
+                    raise GeospatialProcessingError("ZIP contains an unsafe symbolic link.")
                 if info.create_system == 3 and (
                     (info.external_attr >> 16) & 0o170000
                 ) == 0o120000:
