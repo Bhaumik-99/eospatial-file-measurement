@@ -32,7 +32,7 @@ curl http://localhost:8000/api/files/<id>/measurements/
 
 `app/api` exposes HTTP endpoints; `app/services` owns storage, parsing, CRS selection and measurement calculation; `app/models` persists file/feature measurement records through SQLAlchemy; `tests` cover API, geospatial behavior, KML, and security.
 
-Processing flow: validate extension and size -> persist upload -> extract KML or ZIP Shapefile -> load features with GeoPandas -> normalize metadata -> select a measurement CRS -> calculate supported measurements -> persist results -> mark file completed.
+Processing flow: validate extension and size -> persist PROCESSING record -> validate content -> queue background processing -> extract KML or ZIP Shapefile -> load features with GDAL/Pyogrio -> normalize metadata -> select measurement CRS -> calculate measurements -> persist results -> mark COMPLETED or FAILED.
 
 ## CRS handling
 
@@ -44,11 +44,11 @@ ZIP extraction blocks path traversal, rejects unsafe symlinks, limits compressed
 
 ## Design decisions
 
-FastAPI was selected for typed request/response models and automatic OpenAPI documentation. GeoPandas/Pyogrio/GDAL provide mature format and CRS support instead of maintaining custom parsers. SQLite is the default for easy local execution while SQLAlchemy keeps persistence replaceable. A background worker/queue can be added later for very large datasets.
+FastAPI was selected for typed request/response models and automatic OpenAPI documentation. GeoPandas/Pyogrio/GDAL provide mature format and CRS support instead of maintaining custom parsers. SQLite is the default for easy local execution while SQLAlchemy keeps persistence replaceable. FastAPI background tasks provide immediate `202 Accepted` behavior for this assignment; a durable external queue is the natural next step for multi-process production deployments.
 
 ## Learning and future scope
 
-This project reinforced practical geospatial concepts such as CRS selection, projected-vs-geographic measurement semantics, safe archive extraction, and separation of API, processing, and persistence concerns. Future work includes abackground job queues, PostGIS, object storage, pagination/streaming for large feature sets, richer geometry support, observability, authentication/rate limiting, and cloud deployment.
+This project reinforced practical geospatial concepts such as CRS selection, projected-vs-geographic measurement semantics, safe archive extraction, and separation of API, processing, and persistence concerns. Future work includes durable background job queues, PostGIS, object storage, pagination/streaming for large feature sets, richer geometry support, observability, authentication/rate limiting, and cloud deployment.
 
 ## Tests
 
@@ -123,3 +123,6 @@ Versioned schema evolution is provided through Alembic:
 ```bash
 alembic upgrade head
 ```
+
+
+`AUTO_CREATE_SCHEMA` defaults to `true` for local setup. Set it to `false` in controlled deployments and run `alembic upgrade head` before starting the application.
