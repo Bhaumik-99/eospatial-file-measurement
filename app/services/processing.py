@@ -78,7 +78,7 @@ def process_file_record(file_id: str, settings: Settings) -> None:
         if record:
             record.status = FileStatus.FAILED
             record.error_message = "Unexpected processing error. Check application logs."
-            record.processed_at = datetime.now(timezone.utc)
+            record.processed_at = datetime.now(UTC)
             db.commit()
         logger.exception(
             "Unexpected geospatial processing failure",
