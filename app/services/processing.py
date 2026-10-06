@@ -66,7 +66,7 @@ def process_file_record(file_id: str, settings: Settings) -> None:
         if record:
             record.status = FileStatus.FAILED
             record.error_message = str(exc)
-            record.processed_at = datetime.now(timezone.utc)
+            record.processed_at = datetime.now(UTC)
             db.commit()
         logger.warning(
             "Geospatial file rejected",
