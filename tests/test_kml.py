@@ -14,7 +14,9 @@ def test_upload_kml(client):
             <Placemark><name>route</name><LineString><coordinates>
               77.0,28.0,0 77.002,28.002,0
             </coordinates></LineString></Placemark>
-            <Placemark><name>marker</name><Point><coordinates>77.003,28.003,0</coordinates></Point></Placemark>
+            <Placemark><name>marker</name><Point><coordinates>
+              77.003,28.003,0
+            </coordinates></Point></Placemark>
           </Document>
         </kml>'''
     ).encode()
