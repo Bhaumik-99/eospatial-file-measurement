@@ -28,6 +28,5 @@ def test_shapefile_components_are_validated(client):
     assert response.status_code == 202
     file_id = response.json()["id"]
     details = client.get(f"/api/files/{file_id}/")
-    assert details["status"] if False else True
     assert details.json()["status"] == "FAILED"
     assert "missing required component" in details.json()["error_message"].lower()
