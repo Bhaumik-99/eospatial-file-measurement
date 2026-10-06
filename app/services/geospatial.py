@@ -77,18 +77,28 @@ def _sanitize_json(value):
         return str(value)
 
 
-def _safe_extract(zip_path: Path, output_dir: Path, max_bytes: int) -> None:
+def _safe_extract(
+    zip_path: Path, output_dir: Path, max_bytes: int, max_files: int = 10_000
+) -> None:
     try:
         with zipfile.ZipFile(zip_path) as archive:
             if archive.testzip():
                 raise GeospatialProcessingError("ZIP archive is corrupt.")
             total_uncompressed = 0
+            file_count = 0
             for info in archive.infolist():
                 if info.is_dir():
                     continue
+                file_count += 1
+                if file_count > max_files:
+                    raise GeospatialProcessingError("ZIP contains too many files.")
                 name = Path(info.filename)
                 if name.is_absolute() or ".." in name.parts:
                     raise GeospatialProcessingError("ZIP contains an unsafe path.")
+                if info.create_system == 3 and (
+                    (info.external_attr >> 16) & 0o170000
+                ) == 0o120000:
+                    raise GeospatialProcessingError("ZIP contains an unsafe symbolic link.")
                 total_uncompressed += info.file_size
                 if total_uncompressed > max_bytes:
                     raise GeospatialProcessingError(
@@ -214,7 +224,9 @@ def _measurement(geometry, source_crs, plan: ProjectionPlan):
     if geometry_type in {"LineString", "MultiLineString"}:
         if not plan.length_crs or source_crs is None:
             return None, None, None, False
-        projected = gpd.GeoSeries([geometry], crs=source_crs).to_crs(plan.length_crs).iloc[0]
+        projected = (
+            gpd.GeoSeries([geometry], crs=source_crs).to_crs(plan.length_crs).iloc[0]
+        )
         return None, float(projected.length), plan.length_crs, True
 
     return None, None, plan.original_crs, True
@@ -225,7 +237,12 @@ def process_geospatial_file(path: Path, file_type: str, settings: Settings) -> P
         working = Path(temp_dir)
         dataset_path = path
         if file_type == "shapefile-zip":
-            _safe_extract(path, working, settings.max_extracted_size_bytes)
+            _safe_extract(
+                path,
+                working,
+                settings.max_extracted_size_bytes,
+                settings.max_zip_files,
+            )
             dataset_path = _find_shapefile(working)
         elif file_type != "kml":
             raise GeospatialProcessingError("Unsupported file type.")
