@@ -1,6 +1,6 @@
-from contextlib import asynccontextmanager
 import logging
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import ORJSONResponse
@@ -18,8 +18,10 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    get_settings().storage_dir.mkdir(parents=True, exist_ok=True)
+    settings = get_settings()
+    if settings.auto_create_schema:
+        Base.metadata.create_all(bind=engine)
+    settings.storage_dir.mkdir(parents=True, exist_ok=True)
     yield
 
 
