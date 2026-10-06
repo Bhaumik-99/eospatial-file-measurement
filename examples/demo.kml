@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Placemark>
+      <name>Demo Plot</name>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>77.0,28.0 77.001,28.0 77.001,28.001 77.0,28.001 77.0,28.0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Demo Route</name>
+      <LineString>
+        <coordinates>77.0,28.0 77.002,28.002</coordinates>
+      </LineString>
+    </Placemark>
+    <Placemark>
+      <name>Demo Marker</name>
+      <Point>
+        <coordinates>77.003,28.003</coordinates>
+      </Point>
+    </Placemark>
+  </Document>
+</kml>
