@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     max_extracted_size_mb: int = 200
     max_features: int = 100_000
     max_zip_files: int = 10_000
+    measurement_page_size_default: int = 100
+    measurement_page_size_max: int = 500
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="", case_sensitive=False)
 
