@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class MeasurementItem(BaseModel):
@@ -19,4 +19,8 @@ class MeasurementResponse(BaseModel):
     file_id: str
     feature_count: int
     file_crs: str | None
+    page: int = Field(ge=1)
+    page_size: int = Field(ge=1)
+    total: int = Field(ge=0)
+    has_next: bool
     items: list[MeasurementItem]
