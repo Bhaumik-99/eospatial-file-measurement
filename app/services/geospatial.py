@@ -92,23 +92,21 @@ def _safe_extract(
                 file_count += 1
                 if file_count > max_files:
                     raise GeospatialProcessingError("ZIP contains too many files.")
-                file_count += 1
-                if file_count > max_files:
-                    raise GeospatialProcessingError("ZIP contains too many files.")
+
                 name = Path(info.filename)
                 if name.is_absolute() or ".." in name.parts:
                     raise GeospatialProcessingError("ZIP contains an unsafe path.")
-                if info.create_system == 3 and ((info.external_attr >> 16) & 0o170000) == 0o120000:
-                    raise GeospatialProcessingError("ZIP contains an unsafe symbolic link.")
                 if info.create_system == 3 and (
                     (info.external_attr >> 16) & 0o170000
                 ) == 0o120000:
                     raise GeospatialProcessingError("ZIP contains an unsafe symbolic link.")
+
                 total_uncompressed += info.file_size
                 if total_uncompressed > max_bytes:
                     raise GeospatialProcessingError(
                         "Extracted ZIP contents exceed the configured limit."
                     )
+
                 target = output_dir / name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 with archive.open(info) as source, target.open("wb") as destination:
@@ -119,21 +117,22 @@ def _safe_extract(
 
 
 def _find_shapefile(extracted_dir: Path) -> Path:
-    shapefiles = sorted(extracted_dir.rglob("*.shp")) + sorted(extracted_dir.rglob("*.SHP"))
-    unique = []
-    seen = set()
-    for path in shapefiles:
-        key = path.resolve()
-        if key not in seen:
-            seen.add(key)
-            unique.append(path)
-    if not unique:
+    candidates = {path.resolve() for path in extracted_dir.rglob("*") if path.suffix.lower() == ".shp"}
+    shapefiles = sorted(candidates)
+    if not shapefiles:
         raise GeospatialProcessingError("ZIP does not contain a .shp file.")
-    if len(unique) > 1:
+    if len(shapefiles) > 1:
         raise GeospatialProcessingError(
             "ZIP contains multiple shapefiles; upload one dataset per archive."
         )
-    return unique[0]
+
+    shp = shapefiles[0]
+    missing = [suffix for suffix in (".shx", ".dbf") if not shp.with_suffix(suffix).exists()]
+    if missing:
+        raise GeospatialProcessingError(
+            f"Shapefile is missing required component(s): {', '.join(missing)}."
+        )
+    return shp
 
 
 def _read_dataset(path: Path) -> gpd.GeoDataFrame:
@@ -150,9 +149,19 @@ def _read_dataset(path: Path) -> gpd.GeoDataFrame:
 
 
 def _representative_lon_lat(gdf: gpd.GeoDataFrame) -> tuple[float, float]:
-    wgs84 = gdf.to_crs("EPSG:4326") if gdf.crs else gdf
-    point = wgs84.geometry.union_all().representative_point()
-    return float(point.x), float(point.y)
+    non_empty = gdf.geometry[~gdf.geometry.is_empty & gdf.geometry.notna()]
+    if non_empty.empty:
+        raise GeospatialProcessingError("Dataset contains no non-empty geometries.")
+
+    points = non_empty.representative_point()
+    xs = [float(point.x) for point in points]
+    ys = [float(point.y) for point in points]
+
+    sin_sum = sum(math.sin(math.radians(x)) for x in xs)
+    cos_sum = sum(math.cos(math.radians(x)) for x in xs)
+    lon = math.degrees(math.atan2(sin_sum, cos_sum))
+    lat = sum(ys) / len(ys)
+    return lon, lat
 
 
 def _local_crs(prefix: str, lon: float, lat: float) -> str:
@@ -165,7 +174,9 @@ def _local_crs(prefix: str, lon: float, lat: float) -> str:
 def _projection_plan(gdf: gpd.GeoDataFrame) -> ProjectionPlan:
     original = _crs_label(gdf.crs)
     if gdf.crs is None:
-        return ProjectionPlan(original_crs=None, area_crs=None, length_crs=None)
+        return ProjectionPlan(original, None, None)
+    if gdf.empty:
+        return ProjectionPlan(original, None, None)
 
     crs = CRS.from_user_input(gdf.crs)
     if crs.is_projected:
@@ -177,29 +188,29 @@ def _projection_plan(gdf: gpd.GeoDataFrame) -> ProjectionPlan:
         )
         if uses_metres:
             return ProjectionPlan(original, original, original)
-        gdf = gdf.to_crs("EPSG:4326")
 
-    wgs84 = gdf.to_crs("EPSG:4326") if gdf.crs != CRS.from_user_input("EPSG:4326") else gdf
-    lon, lat = _representative_lon_lat(wgs84)
-    minx, miny, maxx, maxy = wgs84.total_bounds
-    lon_span = abs(maxx - minx)
-    lat_span = abs(maxy - miny)
+    try:
+        wgs84 = gdf.to_crs("EPSG:4326")
+        lon, lat = _representative_lon_lat(wgs84)
+        minx, miny, maxx, maxy = wgs84.total_bounds
+        lon_span = abs(maxx - minx)
+        lat_span = abs(maxy - miny)
+        crosses_dateline = lon_span > 180
 
-    if lon_span <= 12 and lat_span <= 8 and -80 <= lat <= 84:
-        try:
+        if lon_span <= 12 and lat_span <= 8 and not crosses_dateline and -80 <= lat <= 84:
             estimated = wgs84.estimate_utm_crs()
             if estimated:
                 label = _crs_label(CRS.from_user_input(estimated))
                 return ProjectionPlan(original, label, label)
-        except Exception:
-            pass
 
-    if -90 < lat < 90:
-        return ProjectionPlan(
-            original,
-            _local_crs("laea", lon, lat),
-            _local_crs("aeqd", lon, lat),
-        )
+        if -90 < lat < 90:
+            return ProjectionPlan(
+                original,
+                _local_crs("laea", lon, lat),
+                _local_crs("aeqd", lon, lat),
+            )
+    except Exception as exc:
+        raise GeospatialProcessingError("Unable to determine a safe projected CRS.") from exc
 
     raise GeospatialProcessingError("Could not select a projected CRS for measurement.")
 
@@ -209,15 +220,14 @@ def _measurement(geometry, source_crs, plan: ProjectionPlan):
         return None, None, plan.original_crs, False
 
     geometry_type = geometry.geom_type
-    supported_types = {
+    if geometry_type not in {
         "Polygon",
         "MultiPolygon",
         "LineString",
         "MultiLineString",
         "Point",
         "MultiPoint",
-    }
-    if geometry_type not in supported_types:
+    }:
         return None, None, plan.original_crs, False
 
     if geometry_type in {"Polygon", "MultiPolygon"}:
@@ -229,9 +239,7 @@ def _measurement(geometry, source_crs, plan: ProjectionPlan):
     if geometry_type in {"LineString", "MultiLineString"}:
         if not plan.length_crs or source_crs is None:
             return None, None, None, False
-        projected = (
-            gpd.GeoSeries([geometry], crs=source_crs).to_crs(plan.length_crs).iloc[0]
-        )
+        projected = gpd.GeoSeries([geometry], crs=source_crs).to_crs(plan.length_crs).iloc[0]
         return None, float(projected.length), plan.length_crs, True
 
     return None, None, plan.original_crs, True
@@ -242,12 +250,7 @@ def process_geospatial_file(path: Path, file_type: str, settings: Settings) -> P
         working = Path(temp_dir)
         dataset_path = path
         if file_type == "shapefile-zip":
-            _safe_extract(
-                path,
-                working,
-                settings.max_extracted_size_bytes,
-                settings.max_zip_files,
-            )
+            _safe_extract(path, working, settings.max_extracted_size_bytes, settings.max_zip_files)
             dataset_path = _find_shapefile(working)
         elif file_type != "kml":
             raise GeospatialProcessingError("Unsupported file type.")
