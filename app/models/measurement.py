@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String, func
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -8,6 +8,9 @@ from app.db.session import Base
 
 class FeatureMeasurement(Base):
     __tablename__ = "feature_measurements"
+    __table_args__ = (
+        UniqueConstraint("file_id", "feature_index", name="uq_file_feature_index"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     file_id: Mapped[str] = mapped_column(
