@@ -9,6 +9,7 @@ services:
       MAX_UPLOAD_SIZE_MB: 50
       MAX_EXTRACTED_SIZE_MB: 200
       MAX_FEATURES: 100000
+      MAX_ZIP_FILES: 10000
     volumes:
       - ./storage:/app/storage
       - ./data:/app/data
