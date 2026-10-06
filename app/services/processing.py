@@ -8,7 +8,11 @@ from app.core.config import Settings
 from app.db.session import get_session_factory
 from app.models.file import FileRecord, FileStatus
 from app.models.measurement import FeatureMeasurement
-from app.services.geospatial import GeospatialProcessingError, ProcessedFile, process_geospatial_file
+from app.services.geospatial import (
+    GeospatialProcessingError,
+    ProcessedFile,
+    process_geospatial_file,
+)
 
 logger = logging.getLogger(__name__)
 
