@@ -5,7 +5,7 @@ from tests.test_api import wait_for_completion
 
 def test_upload_kml(client):
     kml = dedent(
-        '''<?xml version="1.0" encoding="UTF-8"?>
+        """<?xml version="1.0" encoding="UTF-8"?>
         <kml xmlns="http://www.opengis.net/kml/2.2">
           <Document>
             <Placemark><name>plot</name><Polygon><outerBoundaryIs><LinearRing><coordinates>
@@ -18,7 +18,7 @@ def test_upload_kml(client):
               77.003,28.003,0
             </coordinates></Point></Placemark>
           </Document>
-        </kml>'''
+        </kml>"""
     ).encode()
     response = client.post(
         "/api/files/",
