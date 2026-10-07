@@ -34,6 +34,5 @@ def test_upload_kml(client):
     assert any(item["area_m2"] is not None for item in payload["items"])
     assert any(item["length_m"] is not None for item in payload["items"])
     assert any(
-        item["geometry_type"] == "Point" and item["area_m2"] is None
-        for item in payload["items"]
+        item["geometry_type"] == "Point" and item["area_m2"] is None for item in payload["items"]
     )
