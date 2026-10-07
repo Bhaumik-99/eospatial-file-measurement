@@ -17,9 +17,7 @@ from app.db.session import Base
 
 class FeatureMeasurement(Base):
     __tablename__ = "feature_measurements"
-    __table_args__ = (
-        UniqueConstraint("file_id", "feature_index", name="uq_file_feature_index"),
-    )
+    __table_args__ = (UniqueConstraint("file_id", "feature_index", name="uq_file_feature_index"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     file_id: Mapped[str] = mapped_column(
