@@ -33,8 +33,7 @@ def persist_processed_file(db: Session, record: FileRecord, processed: Processed
                 file_id=record.id,
                 feature_index=feature.feature_index,
                 geometry_type=feature.geometry_type,
-                geometry=feature.geometry
-                or {"type": "GeometryCollection", "geometries": []},
+                geometry=feature.geometry or {"type": "GeometryCollection", "geometries": []},
                 properties=feature.properties,
                 crs=feature.crs,
                 measurement_crs=feature.measurement_crs,
