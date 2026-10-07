@@ -96,9 +96,7 @@ def _safe_extract(
                 name = Path(info.filename)
                 if name.is_absolute() or ".." in name.parts:
                     raise GeospatialProcessingError("ZIP contains an unsafe path.")
-                if info.create_system == 3 and (
-                    (info.external_attr >> 16) & 0o170000
-                ) == 0o120000:
+                if info.create_system == 3 and ((info.external_attr >> 16) & 0o170000) == 0o120000:
                     raise GeospatialProcessingError("ZIP contains an unsafe symbolic link.")
 
                 total_uncompressed += info.file_size
@@ -117,11 +115,7 @@ def _safe_extract(
 
 
 def _find_shapefile(extracted_dir: Path) -> Path:
-    candidates = {
-        path.resolve()
-        for path in extracted_dir.rglob("*")
-        if path.suffix.lower() == ".shp"
-    }
+    candidates = {path.resolve() for path in extracted_dir.rglob("*") if path.suffix.lower() == ".shp"}
     shapefiles = sorted(candidates)
     if not shapefiles:
         raise GeospatialProcessingError("ZIP does not contain a .shp file.")
@@ -169,10 +163,7 @@ def _representative_lon_lat(gdf: gpd.GeoDataFrame) -> tuple[float, float]:
 
 
 def _local_crs(prefix: str, lon: float, lat: float) -> str:
-    return (
-        f"+proj={prefix} +lat_0={lat:.8f} +lon_0={lon:.8f} "
-        "+datum=WGS84 +units=m +no_defs"
-    )
+    return f"+proj={prefix} +lat_0={lat:.8f} +lon_0={lon:.8f} +datum=WGS84 +units=m +no_defs"
 
 
 def _projection_plan(gdf: gpd.GeoDataFrame) -> ProjectionPlan:
@@ -271,9 +262,7 @@ def process_geospatial_file(path: Path, file_type: str, settings: Settings) -> P
         for position, (idx, row) in enumerate(gdf.iterrows()):
             geometry = row.geometry
             properties = {
-                str(key): _sanitize_json(value)
-                for key, value in row.items()
-                if key != "geometry"
+                str(key): _sanitize_json(value) for key, value in row.items() if key != "geometry"
             }
             area_m2, length_m, measurement_crs, supported = _measurement(geometry, gdf.crs, plan)
             features.append(
