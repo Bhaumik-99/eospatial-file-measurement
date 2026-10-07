@@ -15,9 +15,7 @@ def make_shapefile_zip() -> bytes:
             [
                 {
                     "name": "plot-a",
-                    "geometry": Polygon(
-                        [(77, 28), (77.001, 28), (77.001, 28.001), (77, 28.001)]
-                    ),
+                    "geometry": Polygon([(77, 28), (77.001, 28), (77.001, 28.001), (77, 28.001)]),
                 },
             ],
             crs="EPSG:4326",
@@ -80,9 +78,7 @@ def test_measurement_can_omit_geometry(client):
     )
     file_id = response.json()["id"]
     wait_for_completion(client, file_id)
-    payload = client.get(
-        f"/api/files/{file_id}/measurements/?include_geometry=false"
-    ).json()
+    payload = client.get(f"/api/files/{file_id}/measurements/?include_geometry=false").json()
     assert payload["items"][0]["geometry"] is None
 
 
