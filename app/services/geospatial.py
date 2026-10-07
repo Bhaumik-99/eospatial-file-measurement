@@ -275,9 +275,7 @@ def process_geospatial_file(path: Path, file_type: str, settings: Settings) -> P
                 for key, value in row.items()
                 if key != "geometry"
             }
-            area_m2, length_m, measurement_crs, supported = _measurement(
-                geometry, gdf.crs, plan
-            )
+            area_m2, length_m, measurement_crs, supported = _measurement(geometry, gdf.crs, plan)
             features.append(
                 ProcessedFeature(
                     feature_index=int(idx) if isinstance(idx, numbers.Integral) else position,
