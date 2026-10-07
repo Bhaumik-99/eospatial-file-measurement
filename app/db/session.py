@@ -16,6 +16,7 @@ def build_engine(database_url: str):
     db_engine = create_engine(database_url, connect_args=connect_args, future=True)
 
     if database_url.startswith("sqlite"):
+
         @event.listens_for(db_engine, "connect")
         def _enable_sqlite_foreign_keys(dbapi_connection, connection_record):
             cursor = dbapi_connection.cursor()
