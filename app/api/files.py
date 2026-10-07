@@ -157,9 +157,7 @@ def get_measurements(
 
     total = int(
         db.scalar(
-            select(func.count(FeatureMeasurement.id)).where(
-                FeatureMeasurement.file_id == file_id
-            )
+            select(func.count(FeatureMeasurement.id)).where(FeatureMeasurement.file_id == file_id)
         )
         or 0
     )
